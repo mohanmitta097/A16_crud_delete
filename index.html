@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student CRUD Complete</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 18px; background: #f5f7fb; }
+    h1 { color: #243b53; }
+    form, .record { background: white; padding: 16px; margin: 12px 0; border-radius: 9px; box-shadow: 0 1px 5px #0001; }
+    input { padding: 10px; margin: 5px 4px 5px 0; border: 1px solid #ccd3dd; border-radius: 5px; }
+    button { padding: 9px 14px; margin: 4px; border: 0; border-radius: 5px; background: #2457c5; color: white; cursor: pointer; }
+    button.delete { background: #bd3030; }
+    button.edit { background: #46734a; }
+    .muted { color: #52606d; }
+    #message { min-height: 22px; }
+  </style>
+</head>
+<body>
+  <h1>Student Manager — Complete CRUD</h1>
+  <p class="muted">Create, view, edit and delete student records using the FastAPI backend.</p>
+  <form id="studentForm"><input name="name" placeholder="Student name" required><input name="age" type="number" min="1" placeholder="Age" required><input name="course" placeholder="Course" required><button id="submitButton" type="submit">Add student</button><button type="button" id="cancelButton" hidden>Cancel edit</button></form>
+  <p id="message" role="status"></p>
+  <section>
+    <h2>Students</h2>
+    <div id="records">Loading...</div>
+  </section>
+  <script>
+    const API = "/students";
+    const message = (text) => document.getElementById("message").textContent = text;
+    async function loadStudents() {
+      const response = await fetch(API);
+      const students = await response.json();
+      const records = document.getElementById("records");
+      records.innerHTML = "";
+      if (!students.length) {
+        records.textContent = "No students added yet.";
+        return;
+      }
+      students.forEach(student => {
+        const item = document.createElement("div");
+        item.className = "record";
+        item.innerHTML = `<strong>${student.name}</strong> — Age: ${student.age} — Course: ${student.course}`;
+        const edit = document.createElement('button'); edit.className = 'edit'; edit.textContent = 'Edit'; edit.addEventListener('click', () => startEdit(student)); item.appendChild(edit); const del = document.createElement('button'); del.className = 'delete'; del.textContent = 'Delete'; del.addEventListener('click', () => deleteStudent(student.id)); item.appendChild(del);
+        records.appendChild(item);
+      });
+    }
+
+    let editingId = null;
+    const form = document.getElementById("studentForm");
+    function startEdit(student) {
+      editingId = student.id;
+      form.name.value = student.name; form.age.value = student.age; form.course.value = student.course;
+      document.getElementById("submitButton").textContent = "Save changes";
+      document.getElementById("cancelButton").hidden = false;
+      message("Editing student #" + student.id);
+      window.scrollTo({top: 0, behavior: "smooth"});
+    }
+    function resetEdit() {
+      editingId = null; form.reset();
+      document.getElementById("submitButton").textContent = "Add student";
+      document.getElementById("cancelButton").hidden = true;
+    }
+    document.getElementById("cancelButton").addEventListener("click", resetEdit);
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const payload = {name: form.name.value.trim(), age: Number(form.age.value), course: form.course.value.trim()};
+      const isEdit = editingId !== null;
+      const response = await fetch(isEdit ? `${API}/${editingId}` : API, {method: isEdit ? "PUT" : "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(payload)});
+      if (!response.ok) { message("Operation failed."); return; }
+      resetEdit(); message(isEdit ? "Student updated." : "Student added."); await loadStudents();
+    });
+    async function deleteStudent(id) {
+      if (!confirm("Delete this student?")) return;
+      const response = await fetch(`${API}/${id}`, {method: "DELETE"});
+      if (!response.ok) { message("Could not delete student."); return; }
+      if (editingId === id) resetEdit();
+      message("Student deleted."); await loadStudents();
+    }
+
+    loadStudents().catch(() => message("Could not load students. Is the server running?"));
+  </script>
+</body>
+</html>
